@@ -12,8 +12,8 @@ fi
 PAGE_SIZE=1000000 # 1 million
 EXPORT_DIR="export"
 
-command -v mysql >/dev/null 2>&1 || { echo >&2 "mysql client is required but it's not installed.  Aborting."; exit 1; }
-command -v mysqldump >/dev/null 2>&1 || { echo >&2 "mysqldump is required but it's not installed.  Aborting."; exit 1; }
+command -v mysql >/dev/null 2>&1 || { echo >&2 "mysql client is required but it's not installed. Aborting."; exit 1; }
+command -v mysqldump >/dev/null 2>&1 || { echo >&2 "mysqldump is required but it's not installed. Aborting."; exit 1; }
 
 if [[ ! -d $EXPORT_DIR ]]; then
     mkdir $EXPORT_DIR

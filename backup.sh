@@ -37,7 +37,7 @@ for table in $tables; do
 
     while [ $page -le $page_count ]; do
 
-        export_file_name="$EXPORT_DIR/${table}_$page.sql"
+        export_file_name="${table}_$page.sql"
         echo "Dumping page #$page to $export_file_name"
 
         offset=$(((page - 1) * PAGE_SIZE))
@@ -57,7 +57,7 @@ for table in $tables; do
                 --set-charset \
                 --no-tablespaces \
                 --where "1 LIMIT $PAGE_SIZE OFFSET $offset" \
-                $DB_NAME $table > $export_file_name \
+                $DB_NAME $table > "$EXPORT_DIR/$export_file_name" \
                 2>/dev/null
         else
             mysqldump \
@@ -71,7 +71,7 @@ for table in $tables; do
                 --single-transaction \
                 --no-tablespaces \
                 --where="1 LIMIT $PAGE_SIZE OFFSET $offset" \
-                $DB_NAME $table > $export_file_name \
+                $DB_NAME $table > "$EXPORT_DIR/$export_file_name" \
                 2>/dev/null
         fi
 
@@ -79,5 +79,13 @@ for table in $tables; do
         echo # \n
     done
 done
+
+
+echo "Syncing to S3..."
+current_datetime=$(date +'%d/%m/%YT%H:%M:%S')
+time aws s3 sync \
+    --endpoint-url=$S3_ENDPOINT_URL \
+    $EXPORT_DIR \
+    s3://$S3_BUCKET_NAME/db-backups/$current_datetime
 
 echo "Done!"

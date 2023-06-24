@@ -1,3 +1,3 @@
 # sql-backup-job
 
-a paginated sql backup script for syncing to s3
+a paginated mysql backup bash script for syncing to s3

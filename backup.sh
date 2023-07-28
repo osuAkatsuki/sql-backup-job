@@ -9,7 +9,7 @@ else
 fi
 
 # Dump settings
-PAGE_SIZE=1000000 # 1 million
+MAX_FILE_SIZE=5368709120 # s3's max file size is 5gb
 EXPORT_DIR="export"
 
 command -v mysql >/dev/null 2>&1 || { echo >&2 "mysql client is required but it's not installed. Aborting."; exit 1; }
@@ -19,73 +19,31 @@ if [[ ! -d $EXPORT_DIR ]]; then
     mkdir $EXPORT_DIR
 fi
 
-tables=$(
-    echo "show tables" |
-    mysql -u$DB_USER -h$DB_HOST -P$DB_PORT --password=$DB_PASS $DB_NAME 2>/dev/null |
-    grep -v "Tables_in_"
-)
+echo "Dumping database..."
+mysqldump -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS $DB_NAME > "$EXPORT_DIR/backup.sql" 2>/dev/null
 
-for table in $tables; do
-    echo "Dumping table: $table"
+echo "Dividing into parts..."
+split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql" "$EXPORT_DIR/backup.sql.part-"
 
-    row_count=$(mysql -u$DB_USER --password=$DB_PASS -h$DB_HOST -P$DB_PORT --raw --batch -e "SELECT COUNT(*) FROM $DB_NAME.$table" -s 2>/dev/null)
-
-    page_count="$((1 + (row_count / PAGE_SIZE)))"
-    echo "Rows: $row_count ($page_count page(s))"
-
-    page=1
-
-    while [ $page -le $page_count ]; do
-
-        export_file_name="${table}_$page.sql"
-        echo "Dumping page #$page to $export_file_name"
-
-        offset=$(((page - 1) * PAGE_SIZE))
-
-        if [ $page == 1 ]; then
-
-            # include additional info on our first page
-            mysqldump \
-                -h$DB_HOST -P$DB_PORT \
-                -u$DB_USER --password=$DB_PASS \
-                --add-drop-table \
-                --add-locks \
-                --skip-disable-keys \
-                --create-options \
-                --extended-insert \
-                --lock-tables \
-                --set-charset \
-                --no-tablespaces \
-                --where "1 LIMIT $PAGE_SIZE OFFSET $offset" \
-                $DB_NAME $table > "$EXPORT_DIR/$export_file_name" \
-                2>/dev/null
-        else
-            mysqldump \
-                -h$DB_HOST -P$DB_PORT \
-                -u$DB_USER --password=$DB_PASS \
-                --skip-add-drop-table \
-                --skip-add-locks \
-                --skip-disable-keys \
-                --skip-set-charset \
-                --no-create-info \
-                --single-transaction \
-                --no-tablespaces \
-                --where="1 LIMIT $PAGE_SIZE OFFSET $offset" \
-                $DB_NAME $table > "$EXPORT_DIR/$export_file_name" \
-                2>/dev/null
-        fi
-
-        page=$((page + 1))
-        echo # \n
-    done
-done
-
+echo "Compressing..."
+rm "$EXPORT_DIR/backup.sql"
 
 echo "Syncing to S3..."
-current_datetime=$(date +'%d/%m/%YT%H:%M:%S')
+backup_name=$(date +'%d-%m-%YT%H:%M')
 time aws s3 sync \
     --endpoint-url=$S3_ENDPOINT_URL \
     $EXPORT_DIR \
-    s3://$S3_BUCKET_NAME/db-backups/$current_datetime
+    s3://$S3_BUCKET_NAME/db-backups/$backup_name
+
+if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+    echo "Sending notification to Discord..."
+    curl \
+        -H "Content-Type: application/json" \
+        -d "{\"username\": \"Akatsuki\", \"content\": \"Successfully backed up MySQL production database - $(du -sh $EXPORT_DIR | cut -f1)\"}" \
+        $DISCORD_WEBHOOK_URL
+fi
+
+echo "Cleaning up..."
+rm -rf $EXPORT_DIR
 
 echo "Done!"

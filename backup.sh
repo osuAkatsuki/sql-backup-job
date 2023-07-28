@@ -23,11 +23,11 @@ fi
 echo "Dumping database..."
 mysqldump -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS $DB_NAME > "$EXPORT_DIR/backup.sql" 2>/dev/null
 
-echo "Dividing into parts..."
-split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql" "$EXPORT_DIR/backup.sql.part-"
+echo "Compressing with gzip..."
+gzip "$EXPORT_DIR/backup.sql"
 
-echo "Compressing..."
-rm "$EXPORT_DIR/backup.sql"
+echo "Dividing into parts..."
+split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql.gz" "$EXPORT_DIR/backup.sql.gz.part-"
 
 echo "Syncing to S3..."
 backup_name=$(date +'%d-%m-%YT%H:%M')

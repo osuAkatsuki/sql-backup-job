@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Dump settings
+MAX_FILE_SIZE=5368709120 # s3's max file size is 5gb
+EXPORT_DIR="export"
+
+echo "Validating environment requirements..."
 if [[ -f ".env" ]]; then
     source .env
 else
     echo "No .env file found. Exiting."
     exit 1
 fi
-
-# Dump settings
-MAX_FILE_SIZE=5368709120 # s3's max file size is 5gb
-EXPORT_DIR="export"
 
 command -v mysql >/dev/null 2>&1 || { echo >&2 "mysql client is required but it's not installed. Aborting."; exit 1; }
 command -v mysqldump >/dev/null 2>&1 || { echo >&2 "mysqldump is required but it's not installed. Aborting."; exit 1; }

@@ -35,6 +35,14 @@ time aws s3 sync \
     $EXPORT_DIR \
     s3://$S3_BUCKET_NAME/db-backups/$backup_name
 
+if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+    echo "Sending notification to Discord..."
+    curl \
+        -H "Content-Type: application/json" \
+        -d "{\"username\": \"Akatsuki\", \"content\": \"Successfully backed up MySQL production database - $(du -sh $EXPORT_DIR | cut -f1)\"}" \
+        $DISCORD_WEBHOOK_URL
+fi
+
 echo "Cleaning up..."
 rm -rf $EXPORT_DIR
 

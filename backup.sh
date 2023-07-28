@@ -9,7 +9,7 @@ else
 fi
 
 # Dump settings
-MAX_FILE_SIZE=1000000000 # 1gb
+MAX_FILE_SIZE=5368709120 # s3's max file size is 5gb
 EXPORT_DIR="export"
 
 command -v mysql >/dev/null 2>&1 || { echo >&2 "mysql client is required but it's not installed. Aborting."; exit 1; }

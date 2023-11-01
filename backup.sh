@@ -16,12 +16,14 @@ fi
 command -v mysql >/dev/null 2>&1 || { echo >&2 "mysql client is required but it's not installed. Aborting."; exit 1; }
 command -v mysqldump >/dev/null 2>&1 || { echo >&2 "mysqldump is required but it's not installed. Aborting."; exit 1; }
 
-if [[ ! -d $EXPORT_DIR ]]; then
-    mkdir $EXPORT_DIR
+if [[ -d $EXPORT_DIR ]]; then
+    rm -rf $EXPORT_DIR
 fi
 
+mkdir $EXPORT_DIR
+
 echo "Dumping database..."
-mysqldump -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS $DB_NAME > "$EXPORT_DIR/backup.sql" 2>/dev/null
+mysqldump --single-transaction -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS $DB_NAME > "$EXPORT_DIR/backup.sql"
 
 echo "Compressing with gzip..."
 gzip "$EXPORT_DIR/backup.sql"

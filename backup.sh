@@ -16,18 +16,20 @@ fi
 command -v mysql >/dev/null 2>&1 || { echo >&2 "mysql client is required but it's not installed. Aborting."; exit 1; }
 command -v mysqldump >/dev/null 2>&1 || { echo >&2 "mysqldump is required but it's not installed. Aborting."; exit 1; }
 
-if [[ ! -d $EXPORT_DIR ]]; then
-    mkdir $EXPORT_DIR
+if [[ -d $EXPORT_DIR ]]; then
+    rm -rf $EXPORT_DIR
 fi
 
+mkdir $EXPORT_DIR
+
 echo "Dumping database..."
-mysqldump -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS $DB_NAME > "$EXPORT_DIR/backup.sql" 2>/dev/null
+mysqldump --single-transaction -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS $DB_NAME > "$EXPORT_DIR/backup.sql"
+
+echo "Compressing with gzip..."
+gzip "$EXPORT_DIR/backup.sql"
 
 echo "Dividing into parts..."
-split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql" "$EXPORT_DIR/backup.sql.part-"
-
-echo "Compressing..."
-rm "$EXPORT_DIR/backup.sql"
+split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql.gz" "$EXPORT_DIR/backup.sql.gz.part-"
 
 echo "Syncing to S3..."
 backup_name=$(date +'%d-%m-%YT%H:%M')

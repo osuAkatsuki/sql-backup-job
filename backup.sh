@@ -23,7 +23,15 @@ fi
 mkdir $EXPORT_DIR
 
 echo "Dumping database..."
-mysqldump --single-transaction -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS $DB_NAME > "$EXPORT_DIR/backup.sql"
+
+MASTER_ONLY_PARAMS=""
+if [[ -n "$IS_MASTER_DB" ]]; then
+    MASTER_ONLY_PARAMS="--source-data"
+fi
+
+mysqldump --all-databases --single-transaction $MASTER_ONLY_PARAMS \
+          -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS \
+          > "$EXPORT_DIR/backup.sql"
 
 echo "Compressing with gzip..."
 gzip "$EXPORT_DIR/backup.sql"

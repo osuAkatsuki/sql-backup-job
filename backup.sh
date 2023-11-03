@@ -30,6 +30,7 @@ gzip "$EXPORT_DIR/backup.sql"
 
 echo "Dividing into parts..."
 split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql.gz" "$EXPORT_DIR/backup.sql.gz.part-"
+rm "$EXPORT_DIR/backup.sql.gz"
 
 echo "Syncing to S3..."
 backup_name=$(date +'%d-%m-%YT%H:%M')

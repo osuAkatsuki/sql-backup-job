@@ -41,7 +41,7 @@ split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql.gz" "$EXPORT_DIR/backup.sql.gz.p
 rm "$EXPORT_DIR/backup.sql.gz"
 
 echo "Syncing to S3..."
-backup_name=$(date +'%d-%m-%YT%H:%M')
+backup_name=$(date +'%Y-%m-%dT%H:%M')
 time aws s3 sync \
     --endpoint-url=$S3_ENDPOINT_URL \
     $EXPORT_DIR \

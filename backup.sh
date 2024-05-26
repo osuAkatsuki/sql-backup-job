@@ -22,7 +22,7 @@ fi
 
 mkdir $EXPORT_DIR
 
-echo "Dumping database..."
+echo "Dumping all databases..."
 
 MASTER_ONLY_PARAMS=""
 if [[ -n "$IS_MASTER_DB" ]]; then

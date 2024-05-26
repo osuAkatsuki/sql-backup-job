@@ -65,8 +65,8 @@ def main() -> int:
     )
 
     # Figure out which backups to keep and delete
-    kept = set()
-    deleted = set()
+    kept: set[str] = set()
+    deleted: set[str] = set()
     for obj in response["CommonPrefixes"]:
         key = obj["Prefix"]
         if should_keep_backup(key):
@@ -77,7 +77,10 @@ def main() -> int:
     # Delete the backups that should be deleted
     for key in deleted:
         print(f"Deleting {key}")
-        s3.delete_object(Bucket=os.environ["S3_BUCKET_NAME"], Key=key)
+        s3.delete_object(
+            Bucket=os.environ["S3_BUCKET_NAME"],
+            Key=key,
+        )
 
     # Display stats
     print(f"Kept {len(kept)} backups")

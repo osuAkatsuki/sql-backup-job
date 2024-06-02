@@ -10,29 +10,41 @@ Policy definition:
 """
 
 import os
+import os.path
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from typing import NamedTuple
+from typing import TYPE_CHECKING
 
 import boto3
 import dotenv
 
+if TYPE_CHECKING:
+    from mypy_boto3_s3.type_defs import ObjectTypeDef
+
 dotenv.load_dotenv()
 
 
+class Object(NamedTuple):
+    key: str
+    size: int
+
+
 def should_keep_backup(backup_filepath: str) -> bool:
+    directory, _ = os.path.split(backup_filepath)
     try:
-        # New: 'db-backups/2024-02-01T04:08Z/'
+        # New: 'db-backups/2024-02-01T04:08Z'
         backup_date = datetime.strptime(
-            backup_filepath,
-            "db-backups/%Y-%m-%dT%H:%MZ/",
+            directory,
+            "db-backups/%Y-%m-%dT%H:%MZ",
         )
         tzinfo = timezone.utc
     except ValueError:
-        # Old: 'db-backups/01-01-2024T04:08/'
+        # Old: 'db-backups/01-01-2024T04:08'
         backup_date = datetime.strptime(
-            backup_filepath,
-            "db-backups/%d-%m-%YT%H:%M/",
+            directory,
+            "db-backups/%d-%m-%YT%H:%M",
         )
         # Backups were previously named in EST
         tzinfo = timezone(timedelta(hours=-4))
@@ -51,7 +63,7 @@ def should_keep_backup(backup_filepath: str) -> bool:
 
 def main() -> int:
     s3 = boto3.client(
-        "s3",
+        service_name="s3",
         aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
         aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
         endpoint_url=os.environ["S3_ENDPOINT_URL"],
@@ -61,31 +73,33 @@ def main() -> int:
     response = s3.list_objects_v2(
         Bucket=os.environ["S3_BUCKET_NAME"],
         Prefix="db-backups/",
-        Delimiter="/",
     )
 
     # Figure out which backups to keep and delete
-    kept: set[str] = set()
-    deleted: set[str] = set()
-    for obj in response["CommonPrefixes"]:
-        key = obj["Prefix"]
-        if should_keep_backup(key):
-            kept.add(key)
-        else:
-            deleted.add(key)
+    kept: set[Object] = set()
+    deleted: set[Object] = set()
+    for aws_obj in response.get("Contents", []):
+        if key := aws_obj.get("Key"):
+            obj = Object(key=key, size=aws_obj.get("Size", 0))
+            if should_keep_backup(key):
+                kept.add(obj)
+            else:
+                deleted.add(obj)
 
     # Delete the backups that should be deleted
-    for key in deleted:
-        print(f"Deleting {key}")
+    total_bytes_deleted = 0.0
+    for obj in deleted:
+        print(f"Deleting {obj.key} ({obj.size / 1024 ** 3:,.2f} GB)")
         s3.delete_object(
             Bucket=os.environ["S3_BUCKET_NAME"],
-            Key=key,
+            Key=obj.key,
         )
+        total_bytes_deleted += obj.size
 
     # Display stats
     print(f"Kept {len(kept)} backups")
-    print(f"Deleted {len(deleted)} backups")
-    print(f"Total backups: {len(response['CommonPrefixes'])}")
+    print(f"Deleted {len(deleted)} backups ({total_bytes_deleted / 1024 ** 3:.2f} GB)")
+    print(f"Total backups: {len(response.get('Contents', []))}")
     return 0
 
 

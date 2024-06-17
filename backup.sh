@@ -35,7 +35,7 @@ do
     echo "Dumping table: $DB_NAME.$table_name"
     mysqldump --single-transaction $MASTER_ONLY_PARAMS \
               -h$DB_HOST -u$DB_USER -p$DB_PASS \
-              $table_name | gzip > $EXPORT_DIR/$DB_NAME.$table_name.sql.gz
+              $DB_NAME $table_name | gzip > $EXPORT_DIR/$DB_NAME.$table_name.sql.gz
     tbl_count=$(( tbl_count + 1 ))
 done
 

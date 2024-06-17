@@ -22,23 +22,26 @@ fi
 
 mkdir $EXPORT_DIR
 
-echo "Dumping all databases..."
+echo "Dumping all tables in $DB_NAME database.."
 
 MASTER_ONLY_PARAMS=""
-if [[ -n "$IS_MASTER_DB" ]]; then
+if [[ "$INCLUDE_MASTER_REPLICATION_DATA" = "true" ]]; then
     MASTER_ONLY_PARAMS="--source-data"
 fi
 
-mysqldump --all-databases --single-transaction $MASTER_ONLY_PARAMS \
-          -h$DB_HOST -P$DB_PORT -u$DB_USER --password=$DB_PASS \
-          > "$EXPORT_DIR/backup.sql"
+tbl_count=0
+for table_name in $(mysql -NBA -h $DB_HOST -u $DB_USER -p$DB_PASS -D $DB_NAME -e 'show tables')
+do
+    echo "Dumping table: $DB_NAME.$table_name"
+    mysqldump --single-transaction $MASTER_ONLY_PARAMS \
+              -h$DB_HOST -u$DB_USER -p$DB_PASS \
+              $DB_NAME $table_name | gzip > $EXPORT_DIR/$DB_NAME.$table_name.sql.gz
+    tbl_count=$(( tbl_count + 1 ))
+done
 
-echo "Compressing with gzip..."
-gzip "$EXPORT_DIR/backup.sql"
-
-echo "Dividing into parts..."
-split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql.gz" "$EXPORT_DIR/backup.sql.gz.part-"
-rm "$EXPORT_DIR/backup.sql.gz"
+# echo "Dividing into parts..."
+# split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql.gz" "$EXPORT_DIR/backup.sql.gz.part-"
+# rm "$EXPORT_DIR/backup.sql.gz"
 
 echo "Syncing to S3..."
 backup_name=$(date --universal +'%Y-%m-%dT%H:%MZ')

@@ -30,7 +30,7 @@ if [[ -n "$IS_MASTER_DB" ]]; then
 fi
 
 tbl_count=0
-for table_name in $(mysql -NBA -h $DB_HOST -u $DB_USER -p$DB_pass -D $DB_NAME -e 'show tables')
+for table_name in $(mysql -NBA -h $DB_HOST -u $DB_USER -p$DB_PASS -D $DB_NAME -e 'show tables')
 do
     echo "Dumping table: $DB_NAME.$table_name"
     mysqldump --single-transaction $MASTER_ONLY_PARAMS \

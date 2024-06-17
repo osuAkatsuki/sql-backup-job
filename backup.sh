@@ -25,7 +25,7 @@ mkdir $EXPORT_DIR
 echo "Dumping all tables..."
 
 MASTER_ONLY_PARAMS=""
-if [[ -n "$INCLUDE_MASTER_REPLICATION_DATA" ]]; then
+if [[ "$INCLUDE_MASTER_REPLICATION_DATA" = "true" ]]; then
     MASTER_ONLY_PARAMS="--source-data"
 fi
 

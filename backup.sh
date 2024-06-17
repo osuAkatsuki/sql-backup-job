@@ -22,7 +22,7 @@ fi
 
 mkdir $EXPORT_DIR
 
-echo "Dumping all tables..."
+echo "Dumping all tables in $DB_NAME database.."
 
 MASTER_ONLY_PARAMS=""
 if [[ "$INCLUDE_MASTER_REPLICATION_DATA" = "true" ]]; then

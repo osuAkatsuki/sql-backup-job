@@ -33,7 +33,7 @@ tbl_count=0
 for table_name in $(mysql -NBA -h $DB_HOST -u $DB_USER -p$DB_PASS -D $DB_NAME -e 'show tables')
 do
     echo "Dumping table: $DB_NAME.$table_name"
-    mysqldump --single-transaction $MASTER_ONLY_PARAMS \
+    mysqldump --single-transaction --no-tablespaces $MASTER_ONLY_PARAMS \
               -h$DB_HOST -u$DB_USER -p$DB_PASS \
               $DB_NAME $table_name | gzip > $EXPORT_DIR/$DB_NAME.$table_name.sql.gz
     tbl_count=$(( tbl_count + 1 ))

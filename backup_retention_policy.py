@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 A script to delete old backups from wasabi S3 based on a retention policy.
 
@@ -8,8 +7,8 @@ Policy definition:
 - Keep all backups that are either on the midpoint of the month or the first day of the month
 - Delete all other backups
 """
+from __future__ import annotations
 
-import os
 import os.path
 from datetime import datetime
 from datetime import timedelta

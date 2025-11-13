@@ -13,21 +13,11 @@ import os.path
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from typing import NamedTuple
-from typing import TYPE_CHECKING
 
 import boto3
 import dotenv
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3.type_defs import ObjectTypeDef
-
 dotenv.load_dotenv()
-
-
-class Object(NamedTuple):
-    key: str
-    size: int
 
 
 def should_keep_backup(backup_filepath: str) -> bool:
@@ -72,33 +62,50 @@ def main() -> int:
     response = s3.list_objects_v2(
         Bucket=os.environ["S3_BUCKET_NAME"],
         Prefix="db-backups/",
+        Delimiter="/",
     )
+    directories = [
+        obj["Prefix"] for obj in response.get("CommonPrefixes", []) if "Prefix" in obj
+    ]
 
     # Figure out which backups to keep and delete
-    kept: set[Object] = set()
-    deleted: set[Object] = set()
-    for aws_obj in response.get("Contents", []):
-        if key := aws_obj.get("Key"):
-            obj = Object(key=key, size=aws_obj.get("Size", 0))
-            if should_keep_backup(key):
-                kept.add(obj)
-            else:
-                deleted.add(obj)
+    kept = set[str]()
+    deleted = set[str]()
+    for directory in directories:
+        if should_keep_backup(directory):
+            kept.add(directory)
+        else:
+            deleted.add(directory)
 
     # Delete the backups that should be deleted
     total_bytes_deleted = 0.0
-    for obj in deleted:
-        print(f"Deleting {obj.key} ({obj.size / 1024 ** 3:,.2f} GB)")
-        s3.delete_object(
+    for directory in deleted:
+        bucket_bytes_deleted = 0.0
+        response = s3.list_objects_v2(
             Bucket=os.environ["S3_BUCKET_NAME"],
-            Key=obj.key,
+            Prefix=directory,
         )
-        total_bytes_deleted += obj.size
+        objects = [
+            obj
+            for obj in response.get("Contents", [])
+            if "Key" in obj and "Size" in obj
+        ]
+        for obj in objects:
+            total_bytes_deleted += obj["Size"]
+            bucket_bytes_deleted += obj["Size"]
+            s3.delete_object(
+                Bucket=os.environ["S3_BUCKET_NAME"],
+                Key=obj["Key"],
+            )
+
+        print(
+            f"Deleted {directory} ({len(objects)} objects, {bucket_bytes_deleted / 1024 ** 3:.2f} GB)"
+        )
 
     # Display stats
     print(f"Kept {len(kept)} backups")
     print(f"Deleted {len(deleted)} backups ({total_bytes_deleted / 1024 ** 3:.2f} GB)")
-    print(f"Total backups: {len(response.get('Contents', []))}")
+    print(f"Total backups: {len(directories)}")
     return 0
 
 

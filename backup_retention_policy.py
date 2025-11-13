@@ -90,12 +90,11 @@ def main() -> int:
             for obj in response.get("Contents", [])
             if "Key" in obj and "Size" in obj
         ]
-        for obj in objects:
-            bucket_bytes_deleted += obj["Size"]
-            s3.delete_object(
-                Bucket=os.environ["S3_BUCKET_NAME"],
-                Key=obj["Key"],
-            )
+        bucket_bytes_deleted += sum(obj["Size"] for obj in objects)
+        s3.delete_objects(
+            Delete={"Objects": [{"Key": obj["Key"]} for obj in objects]},
+            Bucket=os.environ["S3_BUCKET_NAME"],
+        )
 
         print(
             f"Deleted {directory} ({len(objects)} objects, {bucket_bytes_deleted / 1024 ** 3:.2f} GB)",

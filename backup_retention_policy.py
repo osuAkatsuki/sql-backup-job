@@ -13,48 +13,38 @@ import os.path
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
-from typing import NamedTuple
-from typing import TYPE_CHECKING
 
 import boto3
 import dotenv
 
-if TYPE_CHECKING:
-    from mypy_boto3_s3.type_defs import ObjectTypeDef
-
 dotenv.load_dotenv()
-
-
-class Object(NamedTuple):
-    key: str
-    size: int
 
 
 def should_keep_backup(backup_filepath: str) -> bool:
     directory, _ = os.path.split(backup_filepath)
     try:
         # New: 'db-backups/2024-02-01T04:08Z'
-        backup_date = datetime.strptime(
+        backup_time = datetime.strptime(
             directory,
             "db-backups/%Y-%m-%dT%H:%MZ",
         )
         tzinfo = timezone.utc
     except ValueError:
         # Old: 'db-backups/01-01-2024T04:08'
-        backup_date = datetime.strptime(
+        backup_time = datetime.strptime(
             directory,
             "db-backups/%d-%m-%YT%H:%M",
         )
         # Backups were previously named in EST
         tzinfo = timezone(timedelta(hours=-4))
 
-    backup_date = backup_date.replace(tzinfo=tzinfo)
-    current_date = datetime.now(tz=tzinfo)
+    backup_time = backup_time.replace(tzinfo=tzinfo)
+    current_time = datetime.now(tz=tzinfo)
 
-    if (current_date - backup_date).days < 50:
+    if (current_time - backup_time).days < 50:
         return True
 
-    if backup_date.day == 15 or backup_date.day == 1:
+    if backup_time.day == 15 or backup_time.day == 1:
         return True
 
     return False
@@ -72,33 +62,49 @@ def main() -> int:
     response = s3.list_objects_v2(
         Bucket=os.environ["S3_BUCKET_NAME"],
         Prefix="db-backups/",
+        Delimiter="/",
     )
+    directories = [
+        obj["Prefix"] for obj in response.get("CommonPrefixes", []) if "Prefix" in obj
+    ]
 
     # Figure out which backups to keep and delete
-    kept: set[Object] = set()
-    deleted: set[Object] = set()
-    for aws_obj in response.get("Contents", []):
-        if key := aws_obj.get("Key"):
-            obj = Object(key=key, size=aws_obj.get("Size", 0))
-            if should_keep_backup(key):
-                kept.add(obj)
-            else:
-                deleted.add(obj)
+    kept = set[str]()
+    deleted = set[str]()
+    for directory in directories:
+        if should_keep_backup(directory):
+            kept.add(directory)
+        else:
+            deleted.add(directory)
 
     # Delete the backups that should be deleted
     total_bytes_deleted = 0.0
-    for obj in deleted:
-        print(f"Deleting {obj.key} ({obj.size / 1024 ** 3:,.2f} GB)")
-        s3.delete_object(
+    for directory in deleted:
+        bucket_bytes_deleted = 0.0
+        response = s3.list_objects_v2(
             Bucket=os.environ["S3_BUCKET_NAME"],
-            Key=obj.key,
+            Prefix=directory,
         )
-        total_bytes_deleted += obj.size
+        objects = [
+            obj
+            for obj in response.get("Contents", [])
+            if "Key" in obj and "Size" in obj
+        ]
+        bucket_bytes_deleted += sum(obj["Size"] for obj in objects)
+        s3.delete_objects(
+            Delete={"Objects": [{"Key": obj["Key"]} for obj in objects]},
+            Bucket=os.environ["S3_BUCKET_NAME"],
+        )
+
+        print(
+            f"Deleted {directory} ({len(objects)} objects, {bucket_bytes_deleted / 1024 ** 3:.2f} GB)",
+        )
+        total_bytes_deleted += bucket_bytes_deleted
 
     # Display stats
     print(f"Kept {len(kept)} backups")
     print(f"Deleted {len(deleted)} backups ({total_bytes_deleted / 1024 ** 3:.2f} GB)")
-    print(f"Total backups: {len(response.get('Contents', []))}")
+    print(f"Total backups: {len(directories)}")
     return 0
 
 

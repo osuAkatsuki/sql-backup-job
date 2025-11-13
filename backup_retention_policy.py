@@ -91,7 +91,6 @@ def main() -> int:
             if "Key" in obj and "Size" in obj
         ]
         for obj in objects:
-            total_bytes_deleted += obj["Size"]
             bucket_bytes_deleted += obj["Size"]
             s3.delete_object(
                 Bucket=os.environ["S3_BUCKET_NAME"],
@@ -101,6 +100,7 @@ def main() -> int:
         print(
             f"Deleted {directory} ({len(objects)} objects, {bucket_bytes_deleted / 1024 ** 3:.2f} GB)"
         )
+        total_bytes_deleted += bucket_bytes_deleted
 
     # Display stats
     print(f"Kept {len(kept)} backups")

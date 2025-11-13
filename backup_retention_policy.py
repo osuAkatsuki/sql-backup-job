@@ -24,27 +24,27 @@ def should_keep_backup(backup_filepath: str) -> bool:
     directory, _ = os.path.split(backup_filepath)
     try:
         # New: 'db-backups/2024-02-01T04:08Z'
-        backup_date = datetime.strptime(
+        backup_time = datetime.strptime(
             directory,
             "db-backups/%Y-%m-%dT%H:%MZ",
         )
         tzinfo = timezone.utc
     except ValueError:
         # Old: 'db-backups/01-01-2024T04:08'
-        backup_date = datetime.strptime(
+        backup_time = datetime.strptime(
             directory,
             "db-backups/%d-%m-%YT%H:%M",
         )
         # Backups were previously named in EST
         tzinfo = timezone(timedelta(hours=-4))
 
-    backup_date = backup_date.replace(tzinfo=tzinfo)
-    current_date = datetime.now(tz=tzinfo)
+    backup_time = backup_time.replace(tzinfo=tzinfo)
+    current_time = datetime.now(tz=tzinfo)
 
-    if (current_date - backup_date).days < 50:
+    if (current_time - backup_time).days < 50:
         return True
 
-    if backup_date.day == 15 or backup_date.day == 1:
+    if backup_time.day == 15 or backup_time.day == 1:
         return True
 
     return False

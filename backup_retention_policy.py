@@ -98,7 +98,7 @@ def main() -> int:
             )
 
         print(
-            f"Deleted {directory} ({len(objects)} objects, {bucket_bytes_deleted / 1024 ** 3:.2f} GB)"
+            f"Deleted {directory} ({len(objects)} objects, {bucket_bytes_deleted / 1024 ** 3:.2f} GB)",
         )
         total_bytes_deleted += bucket_bytes_deleted
 

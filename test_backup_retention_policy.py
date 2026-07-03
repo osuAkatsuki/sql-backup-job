@@ -55,6 +55,10 @@ class BackupRetentionPolicyTest(unittest.TestCase):
         self.assertEqual(request.get_method(), "POST")
         self.assertEqual(request.headers["Content-type"], "application/json")
         self.assertEqual(
+            request.headers["User-agent"],
+            "Akatsuki SQL Backup Retention",
+        )
+        self.assertEqual(
             json.loads(request.data.decode()),
             {"username": "Akatsuki", "content": "hello"},
         )

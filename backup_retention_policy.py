@@ -147,7 +147,10 @@ def send_discord_notification(content: str) -> None:
     request = urllib.request.Request(
         webhook_url,
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": "Akatsuki SQL Backup Retention",
+        },
         method="POST",
     )
 

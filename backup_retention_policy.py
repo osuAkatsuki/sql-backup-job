@@ -3,9 +3,9 @@
 A script to delete old backups from wasabi S3 based on a retention policy.
 
 Policy definition:
-- Keep all backups that are less than 50 days old
-- Keep one backup per half-month from 50 to 180 days old
-- Keep one backup per month from 180 to 365 days old
+- Keep all backups that are less than 10 days old
+- Keep one backup per week from 10 to 60 days old
+- Keep one backup per month from 60 to 365 days old
 - Keep one backup per quarter after 365 days
 - Delete all other backups
 """
@@ -23,8 +23,8 @@ import dotenv
 
 dotenv.load_dotenv()
 
-DAILY_RETENTION_DAYS = 50
-SEMI_MONTHLY_RETENTION_DAYS = 180
+DAILY_RETENTION_DAYS = 10
+WEEKLY_RETENTION_DAYS = 60
 MONTHLY_RETENTION_DAYS = 365
 BYTES_PER_GIB = 1024**3
 
@@ -59,9 +59,9 @@ def get_retention_bucket(
     if age_days < DAILY_RETENTION_DAYS:
         return None
 
-    if age_days < SEMI_MONTHLY_RETENTION_DAYS:
-        half_month = 1 if backup_time.day <= 15 else 2
-        return ("semi-month", backup_time.year, backup_time.month, half_month)
+    if age_days < WEEKLY_RETENTION_DAYS:
+        iso_year, iso_week, _ = backup_time.isocalendar()
+        return ("week", iso_year, iso_week, 0)
 
     if age_days < MONTHLY_RETENTION_DAYS:
         return ("month", backup_time.year, backup_time.month, 0)

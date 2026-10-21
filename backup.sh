@@ -8,6 +8,10 @@ EXPORT_DIR="export"
 echo "Validating environment requirements..."
 if [[ -f ".env" ]]; then
     source .env
+    # The aws CLI only reads exported variables; otherwise it falls back to ~/.aws
+    export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID" \
+           AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY" \
+           AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION"
 else
     echo "No .env file found. Exiting."
     exit 1

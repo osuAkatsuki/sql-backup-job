@@ -45,11 +45,15 @@ done
 
 echo "Dumping MySQL accounts and their privileges.."
 # Statements that recreate each account (with its password hash) and its grants. Accounts that
-# MySQL or the OS package create on install are skipped. Raw output (-r) keeps each QUOTE()d
-# account a valid SQL literal. Failures here are reported but don't stop the table backup.
-if ! mysql -NBAr -h $DB_HOST -u $DB_USER -p$DB_PASS -e "
-        SELECT CONCAT(QUOTE(user), '@', QUOTE(host)) FROM mysql.user
-        WHERE user NOT IN ('root', 'debian-sys-maint', 'mysql.sys', 'mysql.session', 'mysql.infoschema')" |
+# MySQL or the OS package create on install are skipped. Account names are pasted into SQL, so
+# only names made of letters, digits and . _ - : % / are dumped; any others are reported.
+# Failures here are reported but don't stop the table backup.
+accounts="FROM mysql.user WHERE user NOT IN ('root', 'debian-sys-maint', 'mysql.sys', 'mysql.session', 'mysql.infoschema')"
+plain_names="user REGEXP '^[A-Za-z0-9._-]+\$' AND host REGEXP '^[A-Za-z0-9.:%_/-]+\$'"
+skipped=$(mysql -NBA -h $DB_HOST -u $DB_USER -p$DB_PASS -e "SELECT COUNT(*) $accounts AND NOT ($plain_names)") || skipped="?"
+[ "$skipped" = 0 ] || echo >&2 "Not dumping $skipped MySQL accounts whose names have other characters"
+if ! mysql -NBAr -h $DB_HOST -u $DB_USER -p$DB_PASS \
+        -e "SELECT CONCAT(QUOTE(user), '@', QUOTE(host)) $accounts AND $plain_names" |
     while IFS= read -r account; do
         mysql -NBAr -h $DB_HOST -u $DB_USER -p$DB_PASS \
               -e "SET print_identified_with_as_hex = ON; SHOW CREATE USER $account; SHOW GRANTS FOR $account" \

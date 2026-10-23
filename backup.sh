@@ -45,15 +45,20 @@ done
 
 echo "Dumping MySQL accounts and their privileges.."
 # Statements that recreate each account (with its password hash) and its grants. Accounts that
-# MySQL or the OS package create on install are skipped.
-for account in $(mysql -NBA -h $DB_HOST -u $DB_USER -p$DB_PASS -e "
-    SELECT CONCAT(QUOTE(user), '@', QUOTE(host)) FROM mysql.user
-    WHERE user NOT IN ('root', 'debian-sys-maint', 'mysql.sys', 'mysql.session', 'mysql.infoschema')")
-do
-    mysql -NBAr -h $DB_HOST -u $DB_USER -p$DB_PASS \
-          -e "SET print_identified_with_as_hex = ON; SHOW CREATE USER $account; SHOW GRANTS FOR $account" \
-        | sed -e 's/^CREATE USER /CREATE USER IF NOT EXISTS /' -e 's/$/;/'
-done | gzip > $EXPORT_DIR/mysql.accounts.sql.gz
+# MySQL or the OS package create on install are skipped. Raw output (-r) keeps each QUOTE()d
+# account a valid SQL literal. Failures here are reported but don't stop the table backup.
+if ! mysql -NBAr -h $DB_HOST -u $DB_USER -p$DB_PASS -e "
+        SELECT CONCAT(QUOTE(user), '@', QUOTE(host)) FROM mysql.user
+        WHERE user NOT IN ('root', 'debian-sys-maint', 'mysql.sys', 'mysql.session', 'mysql.infoschema')" |
+    while IFS= read -r account; do
+        mysql -NBAr -h $DB_HOST -u $DB_USER -p$DB_PASS \
+              -e "SET print_identified_with_as_hex = ON; SHOW CREATE USER $account; SHOW GRANTS FOR $account" \
+            | sed -e 's/^CREATE USER /CREATE USER IF NOT EXISTS /' -e 's/$/;/' \
+            || echo >&2 "Failed to dump account $account"
+    done | gzip > $EXPORT_DIR/mysql.accounts.sql.gz
+then
+    echo >&2 "Failed to dump MySQL accounts"
+fi
 
 # echo "Dividing into parts..."
 # split -b $MAX_FILE_SIZE "$EXPORT_DIR/backup.sql.gz" "$EXPORT_DIR/backup.sql.gz.part-"

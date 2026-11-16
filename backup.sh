@@ -51,6 +51,7 @@ echo "Syncing to S3..."
 backup_name=$(date --universal +'%Y-%m-%dT%H:%MZ')
 time aws s3 sync \
     --endpoint-url=$S3_ENDPOINT_URL \
+    --no-progress \
     $EXPORT_DIR \
     s3://$S3_BUCKET_NAME/db-backups/$backup_name
 
